@@ -206,7 +206,7 @@ def encrypt_payload(
     access_minutes: int = 60
 ) -> dict:
    
-    otp = generate_otp()
+    otp = generate_otp(len(aes_key))
 
     otp_aes_key = generate_otp_aes_key(
         aes_key,
@@ -480,24 +480,87 @@ def encrypt_table(
     }
 
 
-def test_decrypt_first_row(encrypted_file: str, table_name: str) -> dict:
+def test_decrypt_first_row(
+    encrypted_file: str,
+    table_name: str,
+    user_role: str = "guest"
+) -> dict:
     """
-    Tes dekripsi baris pertama.
+    Tes dekripsi baris pertama
+    + access control.
     """
-    df = pd.read_csv(encrypted_file, dtype=str, keep_default_na=False)
+
+    from datetime import datetime, timezone
+
+    df = pd.read_csv(
+        encrypted_file,
+        dtype=str,
+        keep_default_na=False
+    )
 
     if df.empty:
-        raise ValueError("File terenkripsi kosong.")
+        raise ValueError(
+            "File terenkripsi kosong."
+        )
 
     first_row = df.iloc[0].to_dict()
 
+    # ==========================================
+    # TIME-BASED ACCESS CONTROL
+    # ==========================================
+    expires_at = first_row.get(
+        "expires_at"
+    )
+
+    if expires_at:
+
+        expires_at_dt = datetime.fromisoformat(
+            expires_at
+        )
+
+        now = datetime.now(
+            timezone.utc
+        )
+
+        if now > expires_at_dt:
+            raise PermissionError(
+                "Access expired."
+            )
+
+    # ==========================================
+    # ROLE-BASED ACCESS CONTROL
+    # ==========================================
+    allowed_roles = [
+        "admin",
+        "doctor"
+    ]
+
+    if user_role not in allowed_roles:
+        raise PermissionError(
+            f"Access denied for role: {user_role}"
+        )
+
+    # ==========================================
+    # DECRYPTION
+    # ==========================================
     start_time = time.perf_counter()
-    decrypted = decrypt_payload(first_row, table_name)
-    decryption_time = time.perf_counter() - start_time
+
+    decrypted = decrypt_payload(
+        first_row,
+        table_name
+    )
+
+    decryption_time = (
+        time.perf_counter()
+        - start_time
+    )
 
     return {
         "table_name": table_name,
-        "decryption_time_seconds": round(decryption_time, 6),
+        "decryption_time_seconds": round(
+            decryption_time,
+            6
+        ),
         "decrypted_sample": decrypted
     }
 

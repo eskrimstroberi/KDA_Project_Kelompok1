@@ -13,6 +13,11 @@ keys/
 # Results (optional)
 results/
 
+#Logs
+logs/
+audit/
+alerts/
+
 # OS
 .DS_Store
 Thumbs.db

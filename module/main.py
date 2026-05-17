@@ -3,19 +3,25 @@ from pathlib import Path
 import json
 import pandas as pd
 import traceback
-
+from access_control import (login_role)
+from logging_module import (log_info,log_warning,log_error)
 from aes_module import encrypt_table, test_decrypt_first_row, tamper_test, randomness_test, SENSITIVE_COLUMNS
 from rsa_module import (
     generate_rsa_keys,
     rsa_encrypt_key,
     rsa_decrypt_key
 )
-
 from key_management import key_generation_test
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from key_distribution import (simulate_secure_key_distribution, simulate_mitm_attack)
 from key_rotation import (rotate_key, auto_rotate_expired_keys)
 from key_vault import (encrypt_key_registry, decrypt_key_registry)
+from auditing_module import (
+    audit_security_logs
+)
+from anomaly_detection import (
+    detect_security_anomalies
+)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -35,6 +41,7 @@ ACCESS_MINUTES = 60
 
 
 def main():
+    user_role = login_role()
     print("\n=== Secure Key Generation Test ===")
 
     results = key_generation_test()
@@ -57,7 +64,14 @@ def main():
     encrypted_key = rsa_encrypt_key(sample_key)
     decrypted_key = rsa_decrypt_key(encrypted_key)
 
-    print("RSA encryption test :", sample_key == decrypted_key)
+    rsa_ok = sample_key == decrypted_key
+
+    print("RSA encryption test :", rsa_ok)
+
+    if rsa_ok:
+        log_info("RSA encryption/decryption success")
+    else:
+        log_error("RSA encryption/decryption failed")
 
     # key distribution
     test_aes_key = AESGCM.generate_key(
@@ -178,16 +192,23 @@ def main():
             print(f"Ukuran awal       : {result['original_size_kb']} KB")
             print(f"Ukuran terenkripsi: {result['encrypted_size_kb']} KB")
             print(f"Waktu enkripsi    : {result['encryption_time_seconds']} s")
+            log_info(
+            f"AES encryption success - {table_name}"
+            )
 
             encryption_metrics.append(result)
 
             # ── Tes Dekripsi ──────────────────────────────────────────
             decrypt_result = test_decrypt_first_row(
                 encrypted_file=str(output_file),
-                table_name=table_name
+                table_name=table_name,
+                user_role=user_role
             )
 
             print(f"Dekripsi baris 1  : berhasil ({decrypt_result['decryption_time_seconds']} s)")
+            log_info(
+            f"Decryption success - {table_name}"
+            )
 
             decryption_metrics.append({
                 "table_name": table_name,
@@ -203,6 +224,14 @@ def main():
 
             status_label = "AMAN" if integrity_result["tamper_detected"] else "GAGAL"
             print(f"Tes integritas    : {status_label} — {integrity_result['message']}")
+            if integrity_result["tamper_detected"]:
+                log_warning(
+                    f"Tampering detected - {table_name}"
+                )
+            else:
+                log_error(
+                    f"Tampering NOT detected - {table_name}"
+                )
 
             integrity_results.append(integrity_result)
 
@@ -211,6 +240,9 @@ def main():
         except Exception as error:
             failed_count += 1
             print(f"[ERROR] {table_name}:{repr(error)}")
+            log_error(
+            f"{table_name} - {repr(error)}"
+            )
             traceback.print_exc()
 
             encryption_metrics.append({
@@ -269,6 +301,44 @@ def main():
     if skipped_tables:
         print("  results/aes_skipped_tables.csv")
 
+    # ── Audit System ───────────────────────────
+    print(f"\n{'='*50}")
+    print("=== Security Audit Report ===")
 
+    audit_results = (
+        audit_security_logs()
+    )
+
+    for item in audit_results:
+
+        print(
+            f"{item['event']}"
+            f" : {item['total']}"
+        )
+
+    # ── Anomaly Detection ─────────────────────
+    print(f"\n{'='*50}")
+    print("=== Security Anomaly Detection ===")
+
+    anomalies = (
+        detect_security_anomalies()
+    )
+
+    if anomalies:
+
+        for item in anomalies:
+
+            print(
+                f"[{item['severity']}] "
+                f"{item['message']}"
+            )
+
+    else:
+
+        print(
+            "Tidak ada anomali "
+            "terdeteksi."
+        )
+        
 if __name__ == "__main__":
     main()
