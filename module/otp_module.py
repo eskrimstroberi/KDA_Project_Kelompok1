@@ -1,32 +1,39 @@
-import secrets
-import hashlib
+import os
+import base64
 
 
-def generate_otp(length: int = 6) -> str:
+def generate_otp(length: int = None) -> str:
     """
-    Generate cryptographically secure OTP.
+    Generate TRUE OTP sepanjang plaintext.
+    
+    Cara 1 (sesuai jurnal): OTP sepanjang data yang akan di-XOR.
+    Returns: Base64 string.
     """
-
-    digits = "0123456789"
-
-    return "".join(
-        secrets.choice(digits)
-        for _ in range(length)
-    )
+    if length is None:
+        raise ValueError("Length harus di-set! OTP harus sepanjang plaintext.")
+    
+    otp_bytes = os.urandom(length)
+    return base64.b64encode(otp_bytes).decode('utf-8')
 
 
-def generate_otp_aes_key(
-    aes_key: bytes,
-    otp: str
-) -> bytes:
+def otp_xor(data: bytes, otp_b64: str) -> bytes:
     """
-    Gabungkan AES key dengan OTP
-    lalu hash menjadi AES-256 key baru.
+    XOR data dengan OTP (One-Time Pad layer).
+    
+    Sesuai jurnal: C = P XOR K
     """
+    otp_bytes = base64.b64decode(otp_b64.encode())
+    
+    if len(data) != len(otp_bytes):
+        raise ValueError(f"OTP length ({len(otp_bytes)}) != data length ({len(data)})")
+    
+    return bytes(a ^ b for a, b in zip(data, otp_bytes))
 
-    combined = (
-        aes_key +
-        str(otp).encode()
-    )
 
-    return hashlib.sha256(combined).digest()
+def generate_otp_aes_key(aes_key: bytes, otp: str) -> bytes:
+    """
+    Cara 1: OTP nggak dipakai untuk derive AES key.
+    AES key tetap pure. Function ini di-keep untuk backward compat.
+    """
+    # Kalo Cara 1, OTP nggak modify AES key
+    return aes_key
