@@ -1,9 +1,21 @@
+import os
 from pathlib import Path
-
+import json
 import pandas as pd
+import traceback
 
-from aes_module import encrypt_table, test_decrypt_first_row, tamper_test, SENSITIVE_COLUMNS
+from aes_module import encrypt_table, test_decrypt_first_row, tamper_test, randomness_test, SENSITIVE_COLUMNS
+from rsa_module import (
+    generate_rsa_keys,
+    rsa_encrypt_key,
+    rsa_decrypt_key
+)
 
+from key_management import key_generation_test
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from key_distribution import (simulate_secure_key_distribution, simulate_mitm_attack)
+from key_rotation import (rotate_key, auto_rotate_expired_keys)
+from key_vault import (encrypt_key_registry, decrypt_key_registry)
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 
@@ -23,10 +35,105 @@ ACCESS_MINUTES = 60
 
 
 def main():
+    print("\n=== Secure Key Generation Test ===")
+
+    results = key_generation_test()
+
+    for result in results:
+        print(f"""
+    Key #{result['key_number']}
+    Length   : {result['key_length_bytes']} bytes
+    Entropy  : {result['entropy']}
+    Key(Base64):
+    {result['key_base64']}
+    """)
+        
+    print("\n=== RSA Initialization ===")
+
+    generate_rsa_keys()
+
+    sample_key = os.urandom(32)
+
+    encrypted_key = rsa_encrypt_key(sample_key)
+    decrypted_key = rsa_decrypt_key(encrypted_key)
+
+    print("RSA encryption test :", sample_key == decrypted_key)
+
+    # key distribution
+    test_aes_key = AESGCM.generate_key(
+        bit_length=256
+    )
+
+    simulate_secure_key_distribution(
+        test_aes_key
+    )
+
+    # simulate mitm
+    simulate_mitm_attack(
+        test_aes_key
+    )
+
+    # key rotation
+    print("\n=== Key Rotation System ===")
+
+    rotation_result = rotate_key(
+        "patients"
+    )
+
+    rotated = auto_rotate_expired_keys()
+
+    print("\nAuto rotation checked.")
+
+    if rotated:
+
+        print("Expired keys rotated:")
+
+        for item in rotated:
+
+            print(
+                f"- {item['new_key_id']}"
+            )
+
+    else:
+
+        print("Tidak ada key expired.")
+
+    # Secure Key Vault
+    print("\n=== Secure Key Vault System ===")
+
+    keys_path = ROOT_DIR / "keys" / "aes_keys_plain.json"
+
+    if keys_path.exists():
+
+        with open(keys_path, "r", encoding="utf-8") as file:
+            keys_dict = json.load(file)
+
+        encrypt_key_registry(keys_dict)
+
+        decrypted_registry = decrypt_key_registry()
+
+        print(
+            "Vault decrypt success :",
+            len(decrypted_registry) > 0
+        )
+
+    # ── Randomness Validation ───────────────────────────
+    print(f"\n{'='*50}")
+    print("=== OTP Randomness Validation ===")
+
+    random_result = randomness_test()
+
+    print(f"OTP 1              : {random_result['otp_1']}")
+    print(f"OTP 2              : {random_result['otp_2']}")
+    print(f"Ciphertext sama?   : {random_result['ciphertext_equal']}")
+
     encryption_metrics = []
     decryption_metrics = []
     integrity_results = []
     skipped_tables = []
+
+    success_count = 0
+    failed_count = 0
 
     print("=== AES-256-GCM Encryption System ===")
     print(f"Raw folder       : {RAW_DIR}")
@@ -99,8 +206,12 @@ def main():
 
             integrity_results.append(integrity_result)
 
+            success_count += 1
+
         except Exception as error:
-            print(f"[ERROR] {table_name}: {error}")
+            failed_count += 1
+            print(f"[ERROR] {table_name}:{repr(error)}")
+            traceback.print_exc()
 
             encryption_metrics.append({
                 "table_name": table_name,
@@ -125,6 +236,7 @@ def main():
                 "message": f"Tidak dijalankan karena enkripsi gagal: {error}"
             })
 
+
     # ── Simpan hasil evaluasi ─────────────────────────────────────────
     pd.DataFrame(encryption_metrics).to_csv(
         RESULTS_DIR / "aes_encryption_metrics.csv", index=False
@@ -144,7 +256,8 @@ def main():
     # ── Ringkasan akhir ───────────────────────────────────────────────
     print(f"\n{'='*50}")
     print("=== Ringkasan ===")
-    print(f"Berhasil dienkripsi : {len(encryption_metrics)} tabel")
+    print(f"Berhasil dienkripsi : {success_count} tabel")
+    print(f"Gagal proses     : {failed_count} tabel")
     print(f"Dilewati (skip)     : {len(skipped_tables)} tabel")
     print("\nOutput utama:")
     print("  data/encrypted/*_encrypted.csv")

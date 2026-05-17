@@ -6,6 +6,10 @@ import base64
 import hashlib
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
+from otp_module import (
+    generate_otp,
+    generate_otp_aes_key
+)
 
 import pandas as pd
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -212,7 +216,17 @@ def encrypt_payload(
     """
     Enkripsi payload JSON menggunakan AES-256-GCM.
     """
-    aesgcm = AESGCM(aes_key)
+
+    # generate otp
+    otp = generate_otp()
+
+    otp_aes_key = generate_otp_aes_key(
+        aes_key,
+        otp
+    )
+
+    # aesgcm setup
+    aesgcm = AESGCM(otp_aes_key)
     nonce = os.urandom(12)
 
     created_at_dt = datetime.now(timezone.utc)
@@ -225,8 +239,12 @@ def encrypt_payload(
         table_name=table_name,
         key_id=key_id,
         created_at=created_at,
-        expires_at=expires_at
+        expires_at=expires_at,
+        
     )
+
+    aad_json = json.dumps(metadata, sort_keys=True, separators=(",", ":"))
+    aad = aad_json.encode("utf-8")
 
     plaintext = json.dumps(
         payload,
@@ -234,17 +252,17 @@ def encrypt_payload(
         default=str
     ).encode("utf-8")
 
-    # AAD memastikan metadata ikut divalidasi.
-    aad = json.dumps(metadata, sort_keys=True).encode("utf-8")
-
     # Pada AES-GCM, authentication tag sudah tergabung di ciphertext.
     ciphertext = aesgcm.encrypt(nonce, plaintext, aad)
 
     return {
         "key_id": key_id,
         "algorithm": "AES-256-GCM",
+        "otp":otp,
+        "otp_length":len(otp),
         "nonce": b64encode(nonce),
         "ciphertext": b64encode(ciphertext),
+        "aad": aad_json,
         "created_at": created_at,
         "expires_at": expires_at
     }
@@ -271,21 +289,38 @@ def decrypt_payload(row: dict, table_name: str, aes_key=None) -> dict:
     if aes_key is None:
         aes_key = get_aes_key_from_plain_registry(key_id)
 
-    metadata = build_metadata(
-        table_name=table_name,
-        key_id=key_id,
-        created_at=row["created_at"],
-        expires_at=row["expires_at"]
+    otp = str(row["otp"]).strip()
+
+    otp_aes_key = generate_otp_aes_key(
+        aes_key,
+        otp
     )
 
-    aesgcm = AESGCM(aes_key)
+    aesgcm = AESGCM(otp_aes_key)
 
-    nonce = b64decode(row["nonce"])
-    ciphertext = b64decode(row["ciphertext"])
-    aad = json.dumps(metadata, sort_keys=True).encode("utf-8")
+    nonce = b64decode(
+        str(row["nonce"]).strip()
+    )
 
-    plaintext = aesgcm.decrypt(nonce, ciphertext, aad)
-    return json.loads(plaintext.decode("utf-8"))
+    ciphertext = b64decode(
+        str(row["ciphertext"]).strip()
+    )
+
+    aad = str(row["aad"]).encode("utf-8")
+
+    # =====================================================
+    # DECRYPT
+    # =====================================================
+
+    plaintext = aesgcm.decrypt(
+        nonce,
+        ciphertext,
+        aad
+    )
+
+    return json.loads(
+        plaintext.decode("utf-8")
+    )
 
 
 def add_relation_tokens(
@@ -501,3 +536,36 @@ def tamper_test(encrypted_file: str, table_name: str) -> dict:
             "tamper_detected": True,
             "message": "Berhasil: perubahan ciphertext terdeteksi dan dekripsi gagal."
         }
+
+def randomness_test():
+    payload = {
+        "name": "John Doe",
+        "disease": "Diabetes"
+    }
+
+    key_id, aes_key = load_or_create_aes_key("patients")
+
+    encrypted_1 = encrypt_payload(
+        payload=payload,
+        table_name="patients",
+        key_id=key_id,
+        aes_key=aes_key
+    )
+
+    encrypted_2 = encrypt_payload(
+        payload=payload,
+        table_name="patients",
+        key_id=key_id,
+        aes_key=aes_key
+    )
+
+    same_ciphertext = (
+        encrypted_1["ciphertext"] ==
+        encrypted_2["ciphertext"]
+    )
+
+    return {
+        "ciphertext_equal": same_ciphertext,
+        "otp_1": encrypted_1["otp"],
+        "otp_2": encrypted_2["otp"]
+    }

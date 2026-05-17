@@ -1,11 +1,18 @@
-.venv/
+# Python
 __pycache__/
 *.pyc
+venv/
+.env
 
-keys/token_key.bin
-keys/aes_keys_plain.json
+# Data
+data/
 
-data/raw/
-data/encrypted/
+# Keys
+keys/
 
+# Results (optional)
 results/
+
+# OS
+.DS_Store
+Thumbs.db
