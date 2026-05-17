@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+
+keys/token_key.bin
+keys/aes_keys_plain.json
+
+data/raw/
+data/encrypted/
+
+results/
