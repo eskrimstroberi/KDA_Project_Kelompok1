@@ -55,8 +55,8 @@ Project ini digunakan untuk melakukan enkripsi dataset healthcare CSV secara ama
 - Ukuran file sebelum/sesudah
 - Integrity test result
 
----
-
+---text
+```text
 # Project Structure
 KDA_Project_Kelompok1/
 │
@@ -84,7 +84,7 @@ KDA_Project_Kelompok1/
 │
 ├── requirements.txt
 └── .gitignore
-
+```
 ## Installation
 - Clone repository: git clone https://github.com/USERNAME/KDA_Project_Kelompok1.git
 - Install dependencies: pip install -r requirements.txt
