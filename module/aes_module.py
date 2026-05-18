@@ -1,3 +1,4 @@
+
 import os
 import json
 import hmac
@@ -137,7 +138,10 @@ def load_or_create_token_key() -> bytes:
 
 
 def make_token(value, token_key: bytes) -> str:
-
+    """
+    Token dipakai supaya relasi tabel masih bisa dipakai
+    tanpa membuka ID asli.
+    """
     if pd.isna(value):
         return ""
 
@@ -149,7 +153,12 @@ def make_token(value, token_key: bytes) -> str:
 
 
 def load_or_create_aes_key(table_name: str):
- 
+    """
+    Membuat AES key untuk tiap tabel.
+    Untuk tahap development, key disimpan di keys/aes_keys_plain.json.
+
+    Nanti file ini diberikan ke teman RSA untuk dienkripsi.
+    """
     keys_path = KEYS_DIR / "aes_keys_plain.json"
     key_id = f"{table_name}-key-v1"
 
@@ -205,7 +214,11 @@ def encrypt_payload(
     aes_key: bytes,
     access_minutes: int = 60
 ) -> dict:
-   
+    """
+    Enkripsi payload JSON menggunakan AES-256-GCM.
+    """
+
+    # generate otp
     otp = generate_otp()
 
     otp_aes_key = generate_otp_aes_key(
@@ -213,6 +226,7 @@ def encrypt_payload(
         otp
     )
 
+    # aesgcm setup
     aesgcm = AESGCM(otp_aes_key)
     nonce = os.urandom(12)
 
@@ -239,6 +253,7 @@ def encrypt_payload(
         default=str
     ).encode("utf-8")
 
+    # Pada AES-GCM, authentication tag sudah tergabung di ciphertext.
     ciphertext = aesgcm.encrypt(nonce, plaintext, aad)
 
     return {
@@ -255,9 +270,16 @@ def encrypt_payload(
 
 
 def decrypt_payload(row: dict, table_name: str, aes_key=None) -> dict:
+    """
+    Dekripsi satu baris ciphertext.
+
+    Kalau aes_key=None, key dibaca dari keys/aes_keys_plain.json.
+    Nanti saat digabung dengan RSA, aes_key bisa dikirim dari hasil RSA decrypt.
+    """
     if hasattr(row, "to_dict"):
         row = row.to_dict()
 
+    # FIX: Pastikan OTP dibaca sebagai string, bukan float/int
     otp_raw = row.get("otp", "")
     if pd.isna(otp_raw):
         otp_raw = ""
@@ -304,6 +326,10 @@ def decrypt_payload(row: dict, table_name: str, aes_key=None) -> dict:
 
     aad = str(row.get("aad", "")).encode("utf-8")
 
+    # =====================================================
+    # DECRYPT
+    # =====================================================
+
     plaintext = aesgcm.decrypt(
         nonce,
         ciphertext,
@@ -346,6 +372,7 @@ def add_relation_tokens(
             lambda value: make_token(value, token_key)
         )
 
+    # Relasi tambahan untuk tabel-tabel baru
     if table_name == "organizations" and "Id" in original_df.columns:
         public_df["organization_token"] = original_df["Id"].apply(
             lambda value: make_token(value, token_key)
@@ -460,6 +487,7 @@ def encrypt_table(
         axis=1
     )
 
+    # FIX: Pastikan kolom OTP disimpan sebagai string dengan leading zero
     if "otp" in encrypted_df.columns:
         encrypted_df["otp"] = encrypted_df["otp"].astype(str)
     if "otp_length" in encrypted_df.columns:
@@ -484,6 +512,7 @@ def test_decrypt_first_row(encrypted_file: str, table_name: str) -> dict:
     """
     Tes dekripsi baris pertama.
     """
+    # FIX: Pastikan semua kolom dibaca sebagai string untuk menghindari parsing number
     df = pd.read_csv(encrypted_file, dtype=str, keep_default_na=False)
 
     if df.empty:
