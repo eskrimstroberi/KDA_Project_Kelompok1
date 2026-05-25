@@ -23,22 +23,55 @@ from anomaly_detection import (
     detect_security_anomalies
 )
 
+from cloud_storage import (
+    create_bucket,
+    upload_encrypted_file,
+    upload_encrypted_key,
+    upload_metadata,
+    download_encrypted_file,
+    download_encrypted_key,
+    get_metadata
+)
+
+from datetime import datetime, timedelta
+
 ROOT_DIR = Path(__file__).resolve().parents[1]
+
 
 RAW_DIR = ROOT_DIR / "data" / "raw"
 ENCRYPTED_DIR = ROOT_DIR / "data" / "encrypted"
 RESULTS_DIR = ROOT_DIR / "results"
 
+
 ENCRYPTED_DIR.mkdir(parents=True, exist_ok=True)
 RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-
+RESULTS_DIR.mkdir(parents=True, exist_ok=True)
 
 # None = semua baris dipakai
 # Kalau laptop berat, ganti jadi 1000 dulu
 SAMPLE_ROWS = None
-
 ACCESS_MINUTES = 60
+CLOUD_STORAGE_DIR = ROOT_DIR / "cloud_storage"
 
+(CLOUD_STORAGE_DIR / "encrypted").mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+(CLOUD_STORAGE_DIR / "encrypted_keys").mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+(CLOUD_STORAGE_DIR / "metadata").mkdir(
+    parents=True,
+    exist_ok=True
+)
+
+(CLOUD_STORAGE_DIR / "downloads").mkdir(
+    parents=True,
+    exist_ok=True
+)
 
 def main():
     user_role = login_role()
@@ -57,15 +90,16 @@ def main():
         
     print("\n=== RSA Initialization ===")
 
+    print(
+    "\n=== Secure Cloud Storage Initialization ==="
+    )
+
+    create_bucket()
     generate_rsa_keys()
-
     sample_key = os.urandom(32)
-
     encrypted_key = rsa_encrypt_key(sample_key)
     decrypted_key = rsa_decrypt_key(encrypted_key)
-
     rsa_ok = sample_key == decrypted_key
-
     print("RSA encryption test :", rsa_ok)
 
     if rsa_ok:
@@ -234,8 +268,78 @@ def main():
                 )
 
             integrity_results.append(integrity_result)
+            integrity_results.append(integrity_result)
+
+            # =========================================
+            # CLOUD STORAGE INTEGRATION
+            # =========================================
+
+            print("\n=== Uploading to Secure Cloud Storage ===")
+
+            # upload encrypted dataset
+            upload_encrypted_file(
+                local_path=str(output_file),
+                filename=f"{table_name}.enc"
+            )
+
+            # upload encrypted AES key
+            encrypted_key_path = (
+                ROOT_DIR
+                / "keys"
+                / f"{table_name}_encrypted_key.bin"
+            )
+
+            if encrypted_key_path.exists():
+
+                upload_encrypted_key(
+                    local_path=str(
+                        encrypted_key_path
+                    ),
+                    filename=f"{table_name}_key.bin"
+                )
+
+            # create metadata
+            metadata = {
+
+                "table_name": table_name,
+
+                "owner": "doctor_1",
+
+                "encrypted_at":
+                    str(datetime.now()),
+
+                "expires_at":
+                    str(
+                        datetime.now()
+                        + timedelta(
+                            minutes=ACCESS_MINUTES
+                        )
+                    ),
+
+                "key_version": "v1",
+
+                "access_role": user_role,
+
+                "integrity_status":
+                    integrity_result[
+                        "tamper_detected"
+                    ]
+            }
+
+            upload_metadata(
+                metadata_dict=metadata,
+                filename=(
+                    f"{table_name}"
+                    "_metadata.json"
+                )
+            )
+
+            print(
+                "[SUCCESS] Cloud storage upload completed"
+            )
 
             success_count += 1
+            
 
         except Exception as error:
             failed_count += 1
@@ -339,6 +443,43 @@ def main():
             "Tidak ada anomali "
             "terdeteksi."
         )
+    
+    # =========================================
+    # CLOUD RETRIEVAL TEST
+    # =========================================
+
+    print(f"\n{'='*50}")
+    print("=== Secure Cloud Retrieval Test ===")
+
+    if success_count > 0:
+
+        sample_table = known[0].stem
+
+        print(
+            f"Testing secure retrieval: "
+            f"{sample_table}"
+        )
+
+        # download encrypted file
+        download_encrypted_file(
+            f"{sample_table}.enc"
+        )
+
+        # download encrypted key
+        download_encrypted_key(
+            f"{sample_table}_key.bin"
+        )
+
+        # get metadata
+        metadata = get_metadata(
+            f"{sample_table}_metadata.json"
+        )
+
+        print("\nCloud Metadata:")
+
+        for key, value in metadata.items():
+
+            print(f"{key} : {value}")
         
 if __name__ == "__main__":
     main()
