@@ -18,6 +18,9 @@ logs/
 audit/
 alerts/
 
+cloud_storage/
+
 # OS
 .DS_Store
 Thumbs.db
+
