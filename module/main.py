@@ -232,6 +232,35 @@ def main():
 
             encryption_metrics.append(result)
 
+            # =========================================
+            # RSA ENCRYPT AES KEY
+            # =========================================
+
+            aes_key = result["aes_key"]
+
+            encrypted_aes_key = rsa_encrypt_key(
+                aes_key
+            )
+
+            encrypted_key_output = (
+                ROOT_DIR
+                / "keys"
+                / f"{table_name}_encrypted_key.bin"
+            )
+
+            with open(
+                encrypted_key_output,
+                "wb"
+            ) as key_file:
+
+                key_file.write(
+                    encrypted_aes_key.encode("utf-8")
+                )
+
+            print(
+                "[SUCCESS] AES key encrypted with RSA"
+            )
+
             # ── Tes Dekripsi ──────────────────────────────────────────
             decrypt_result = test_decrypt_first_row(
                 encrypted_file=str(output_file),
@@ -267,7 +296,6 @@ def main():
                     f"Tampering NOT detected - {table_name}"
                 )
 
-            integrity_results.append(integrity_result)
             integrity_results.append(integrity_result)
 
             # =========================================
@@ -382,6 +410,7 @@ def main():
     )
     pd.DataFrame(integrity_results).to_csv(
         RESULTS_DIR / "aes_integrity_test.csv", index=False
+    
     )
 
     if skipped_tables:
@@ -402,6 +431,9 @@ def main():
     print("  results/aes_encryption_metrics.csv")
     print("  results/aes_decryption_metrics.csv")
     print("  results/aes_integrity_test.csv")
+    print("  cloud_storage/encrypted/")
+    print("  cloud_storage/encrypted_keys/")
+    print("  cloud_storage/metadata/")
     if skipped_tables:
         print("  results/aes_skipped_tables.csv")
 

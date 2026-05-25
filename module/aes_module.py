@@ -476,7 +476,8 @@ def encrypt_table(
         "original_size_kb": round(original_size_kb, 2),
         "encrypted_size_kb": round(encrypted_size_kb, 2),
         "encryption_time_seconds": round(encryption_time, 6),
-        "output_file": str(output_path)
+        "output_file": str(output_path),
+        "aes_key": aes_key
     }
 
 
@@ -594,6 +595,7 @@ def tamper_test(encrypted_file: str, table_name: str) -> dict:
             "table_name": table_name,
             "tamper_detected": True,
             "message": "Berhasil: perubahan ciphertext terdeteksi dan dekripsi gagal."
+
         }
 
 
