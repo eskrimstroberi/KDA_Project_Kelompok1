@@ -25,6 +25,7 @@ Project ini bertujuan untuk menjaga:
 # Project Objectives
 
 Project ini dibuat untuk:
+
 ✅ Mengamankan data healthcare berbentuk CSV menggunakan hybrid cryptography  
 ✅ Mengimplementasikan manajemen key modern secara aman  
 ✅ Melakukan validasi keamanan melalui decrypt testing, tampering detection, auditing, dan anomaly detection  
@@ -80,7 +81,7 @@ KDA_Project_Kelompok1/
 
 # Installation
 
-- Clone repository: git clone https://github.com/USERNAME/KDA_Project_Kelompok1.git 
+- Clone repository: git clone https://github.com/eskrimstroberi/KDA_Project_Kelompok1.git 
 - Install dependencies: pip install -r requirements.txt 
 
 # Run Project
