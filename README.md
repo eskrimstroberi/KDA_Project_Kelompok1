@@ -1,81 +1,70 @@
 # KDA Project Kelompok 1
+## Secure Healthcare Data Protection System
 
-Implementasi sistem keamanan data berbasis kriptografi menggunakan:
-- AES-256-GCM
+Implementasi sistem keamanan data berbasis kriptografi untuk melindungi dataset healthcare CSV menggunakan kombinasi:
+
+- AES-256-GCM Encryption
 - RSA Encryption
+- One-Time Pad (OTP)
 - Secure Key Distribution
 - Key Rotation
 - Secure Key Vault
-- OTP Validation
-- Integrity Verification
+- Access Control
+- Logging & Auditing
+- Security Anomaly Detection
 
-Project ini digunakan untuk melakukan enkripsi dataset healthcare CSV secara aman dengan mekanisme manajemen key modern dan pengujian keamanan.
+Project ini bertujuan untuk menjaga:
+
+- **Confidentiality** → data tidak bisa dibaca pihak tidak sah
+- **Integrity** → manipulasi ciphertext dapat terdeteksi
+- **Availability** → key management terstruktur
+- **Secure Monitoring** → aktivitas keamanan tercatat dan diaudit
 
 ---
 
-# Features
+# Project Objectives
 
-## AES-256-GCM Encryption
-- Enkripsi file CSV menggunakan AES-256-GCM
-- Mendukung confidentiality + integrity
-- Menggunakan nonce dan authentication tag
-- Verifikasi integritas ciphertext
+Project ini dibuat untuk:
+✅ Mengamankan data healthcare berbentuk CSV menggunakan hybrid cryptography  
+✅ Mengimplementasikan manajemen key modern secara aman  
+✅ Melakukan validasi keamanan melalui decrypt testing, tampering detection, auditing, dan anomaly detection  
+✅ Mensimulasikan role-based access control dalam sistem keamanan data
 
-## RSA Encryption
-- RSA public/private key generation
-- Distribusi AES key secara aman
-- Simulasi secure key exchange
+---
 
-## Secure Key Distribution
-- AES key dienkripsi menggunakan RSA
-- Simulasi attacker/eavesdropper
-- Validasi key receiver
-
-## MITM Attack Detection
-- Simulasi manipulasi ciphertext
-- Sistem mendeteksi perubahan data
-- Decrypt otomatis gagal jika ciphertext dimodifikasi
-
-## Key Rotation System
-- Rotasi key otomatis per tabel
-- Validasi expired key
-- Registry key management
-
-## Secure Key Vault
-- Penyimpanan registry key terenkripsi
-- Vault decryption validation
-
-## OTP Randomness Validation
-- Random OTP generation
-- Validasi randomness ciphertext
-
-## Metrics & Benchmark
-- Waktu enkripsi
-- Waktu dekripsi
-- Ukuran file sebelum/sesudah
-- Integrity test result
-
----text
-```text
 # Project Structure
+
+```text
 KDA_Project_Kelompok1/
 │
-├── data/
-│   ├── raw/                  # Dataset asli
-│   └── encrypted/            # Hasil enkripsi
+├── alerts/
+│   └── security_alerts.csv
 │
-├── keys/                     # Key storage (ignored)
+├── audit/
+│   └── security_audit.csv
+│
+├── data/
+│   ├── raw/                      # Original healthcare dataset
+│   └── encrypted/               # Encrypted dataset output
+│
+├── keys/                        # Key storage
+│
+├── logs/
+│   └── security.log
 │
 ├── module/
+│   ├── access_control.py
 │   ├── aes_module.py
-│   ├── rsa_module.py
-│   ├── otp_module.py
-│   ├── key_generation_module.py
+│   ├── anomaly_detection.py
+│   ├── auditing_module.py
 │   ├── key_distribution.py
-│   ├── key_management.py
+│   ├── key_generation_module.py
 │   ├── key_rotation.py
 │   ├── key_vault.py
-│   └── main.py
+│   ├── logging_module.py
+│   ├── main.py
+│   ├── otp_module.py
+│   └── rsa_module.py
 │
 ├── results/
 │   ├── aes_encryption_metrics.csv
@@ -83,11 +72,33 @@ KDA_Project_Kelompok1/
 │   └── aes_integrity_test.csv
 │
 ├── requirements.txt
+├── README.md
 └── .gitignore
 ```
-## Installation
-- Clone repository: git clone https://github.com/USERNAME/KDA_Project_Kelompok1.git
-- Install dependencies: pip install -r requirements.txt
-- Run Project
-  - Masuk ke folder module: cd module
-  - Jalankan program: python main.py
+
+---
+
+# Installation
+
+- Clone repository: git clone https://github.com/USERNAME/KDA_Project_Kelompok1.git 
+- Install dependencies: pip install -r requirements.txt 
+
+# Run Project
+- Masuk ke folder module: cd module 
+- Jalankan program: python main.py
+
+
+# Example Outputs
+
+Generated files:
+
+```text
+data/encrypted/*_encrypted.csv
+results/aes_encryption_metrics.csv
+results/aes_decryption_metrics.csv
+results/aes_integrity_test.csv
+logs/security.log
+audit/security_audit.csv
+alerts/security_alerts.csv
+```
+
