@@ -22,7 +22,8 @@ def detect_security_anomalies():
     with open(
         LOG_FILE,
         "r",
-        encoding="utf-8"
+        encoding="utf-8",
+        errors="replace"
     ) as file:
 
         logs = file.readlines()

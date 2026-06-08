@@ -22,7 +22,8 @@ def audit_security_logs():
     with open(
         LOG_FILE,
         "r",
-        encoding="utf-8"
+        encoding="utf-8",
+        errors="replace"
     ) as file:
 
         logs = file.readlines()
